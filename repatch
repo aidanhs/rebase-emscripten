@@ -1,0 +1,175 @@
+--- t2	2014-11-16 04:08:10.890295471 +0000
++++ tmp_patch	2014-11-16 04:11:45.430301455 +0000
+@@ -14,7 +14,7 @@
+ +  JSBackend
+    Hexagon
+    Mips
+-   MBlaze
++   MSP430
+ diff --git a/configure b/configure
+ index 0116458..fc3f040 100755
+ --- a/configure
+@@ -23,17 +23,17 @@
+    --enable-targets        Build specific host targets: all or
+                            target1,target2,... Valid targets are: host, x86,
+                            x86_64, sparc, powerpc, arm, aarch64, mips, hexagon,
+--                          xcore, msp430, nvptx, systemz, and cpp (default=all)
+-+                          xcore, msp430, nvptx, systemz, js, and cpp (default=all)
++-                          xcore, msp430, nvptx, systemz, r600, and cpp
+++                          xcore, msp430, nvptx, systemz, r600, js, and cpp
++                           (default=all)
+    --enable-experimental-targets
+                            Build experimental host targets: disable or
+-                           target1,target2,... (default=disable)
+ @@ -5641,7 +5641,7 @@ if test "$enableval" = host-only ; then
+    enableval=host
+  fi
+  case "$enableval" in
+--  all) TARGETS_TO_BUILD="X86 Sparc PowerPC AArch64 ARM Mips XCore MSP430 CppBackend MBlaze NVPTX Hexagon SystemZ" ;;
+-+  all) TARGETS_TO_BUILD="X86 Sparc PowerPC AArch64 ARM Mips XCore MSP430 CppBackend JSBackend MBlaze NVPTX Hexagon SystemZ" ;;
++-  all) TARGETS_TO_BUILD="X86 Sparc PowerPC AArch64 ARM Mips XCore MSP430 CppBackend NVPTX Hexagon SystemZ R600" ;;
+++  all) TARGETS_TO_BUILD="X86 Sparc PowerPC AArch64 ARM Mips XCore MSP430 CppBackend JSBackend NVPTX Hexagon SystemZ R600" ;;
+    *)for a_target in `echo $enableval|sed -e 's/,/ /g' ` ; do
+        case "$a_target" in
+          x86)      TARGETS_TO_BUILD="X86 $TARGETS_TO_BUILD" ;;
+@@ -43,8 +43,8 @@
+          cpp)      TARGETS_TO_BUILD="CppBackend $TARGETS_TO_BUILD" ;;
+ +        js)       TARGETS_TO_BUILD="JSBackend $TARGETS_TO_BUILD" ;;
+          hexagon)  TARGETS_TO_BUILD="Hexagon $TARGETS_TO_BUILD" ;;
+-         mblaze)   TARGETS_TO_BUILD="MBlaze $TARGETS_TO_BUILD" ;;
+          nvptx)    TARGETS_TO_BUILD="NVPTX $TARGETS_TO_BUILD" ;;
++         systemz)  TARGETS_TO_BUILD="SystemZ $TARGETS_TO_BUILD" ;;
+ diff --git a/emscripten-version.txt b/emscripten-version.txt
+ new file mode 100644
+ index 0000000..9f67c6b
+@@ -66,7 +66,7 @@
+      mips,    // MIPS: mips, mipsallegrex
+      mipsel,  // MIPSEL: mipsel, mipsallegrexel
+ @@ -65,7 +66,7 @@ public:
+-     mblaze,  // MBlaze: mblaze
++     xcore,   // XCore: xcore
+      nvptx,   // NVPTX: 32-bit
+      nvptx64, // NVPTX: 64-bit
+ -    le32,    // le32: generic little-endian 32-bit CPU (PNaCl / Emscripten)
+@@ -112,17 +112,17 @@
+ +ModulePass *createNoExitRuntimePass(); // XXX EMSCRIPTEN
+ +ModulePass *createLowerEmAsyncifyPass(); // XXX EMSCRIPTEN
+ +
+- void PNaClABISimplifyAddPreOptPasses(PassManager &PM);
+- void PNaClABISimplifyAddPostOptPasses(PassManager &PM);
++ void PNaClABISimplifyAddPreOptPasses(PassManagerBase &PM);
++ void PNaClABISimplifyAddPostOptPasses(PassManagerBase &PM);
+  
+ diff --git a/lib/IR/Module.cpp b/lib/IR/Module.cpp
+ index 4cb93d1..dd2c691 100644
+ --- a/lib/IR/Module.cpp
+ +++ b/lib/IR/Module.cpp
+ @@ -24,6 +24,7 @@
++ #include "llvm/IR/InstrTypes.h"
+  #include "llvm/IR/LLVMContext.h"
+  #include "llvm/Support/LeakDetector.h"
+- #include "llvm/Support/ErrorHandling.h" // @LOCALMOD
+ +#include "llvm/Support/raw_ostream.h" // XXX Emscripten TODO: Move to PNacl upstream.
+  #include <algorithm>
+  #include <cstdarg>
+@@ -213,9 +213,9 @@
+      .Case("spir", Triple::spir)
+      .Case("spir64", Triple::spir64)
+ @@ -287,6 +294,7 @@ static Triple::OSType parseOS(StringRef OSName) {
+-     .StartsWith("cnk", Triple::CNK)
+-     .StartsWith("bitrig", Triple::Bitrig)
+      .StartsWith("aix", Triple::AIX)
++     .StartsWith("cuda", Triple::CUDA)
++     .StartsWith("nvcl", Triple::NVCL)
+ +    .StartsWith("emscripten", Triple::Emscripten)
+      .Default(Triple::UnknownOS);
+  }
+@@ -227,7 +227,7 @@
+ +  case llvm::Triple::asmjs:
+    case llvm::Triple::hexagon:
+    case llvm::Triple::le32:
+-   case llvm::Triple::mblaze:
++   case llvm::Triple::mips:
+ @@ -725,6 +734,7 @@ Triple Triple::get32BitArchVariant() const {
+    case Triple::amdil:
+    case Triple::spir:
+@@ -235,7 +235,7 @@
+ +  case Triple::asmjs:
+    case Triple::hexagon:
+    case Triple::le32:
+-   case Triple::mblaze:
++   case Triple::mips:
+ @@ -758,6 +768,7 @@ Triple Triple::get64BitArchVariant() const {
+    case Triple::UnknownArch:
+    case Triple::amdil:
+@@ -243,7 +243,7 @@
+ +  case Triple::asmjs:
+    case Triple::hexagon:
+    case Triple::le32:
+-   case Triple::mblaze:
++   case Triple::msp430:
+ diff --git a/lib/Target/CppBackend/CMakeLists.txt b/lib/Target/CppBackend/CMakeLists.txt
+ deleted file mode 100644
+ index 515e1dd..0000000
+@@ -10203,8 +10203,8 @@
+ +; TODO Add CppBackend back once it's restored. XXX Emscripten
+ +
+  [common]
+--subdirectories = AArch64 ARM CppBackend Hexagon MBlaze MSP430 NVPTX Mips PowerPC R600 Sparc SystemZ X86 XCore
+-+subdirectories = AArch64 ARM Hexagon JSBackend MBlaze MSP430 NVPTX Mips PowerPC R600 Sparc SystemZ X86 XCore
++-subdirectories = AArch64 ARM CppBackend Hexagon MSP430 NVPTX Mips PowerPC R600 Sparc SystemZ X86 XCore
+++subdirectories = AArch64 ARM Hexagon JSBackend MSP430 NVPTX Mips PowerPC R600 Sparc SystemZ X86 XCore
+  
+  ; This is a special group whose required libraries are extended (by llvm-build)
+  ; with the best execution engine (the native JIT, if available, or the
+@@ -10218,8 +10218,8 @@
+  #include "llvm/Support/raw_ostream.h"
+ +#include "llvm/Support/ValueHandle.h"
+  #include "llvm/Target/TargetLibraryInfo.h"
+- #include <algorithm>
+- using namespace llvm;
++ #include "llvm/Transforms/Utils/GlobalStatus.h"
++ #include "llvm/Transforms/Utils/ModuleUtils.h"
+ @@ -473,9 +474,17 @@ static bool CleanupPointerRootUsers(GlobalVariable *GV,
+  static bool CleanupConstantGlobalUsers(Value *V, Constant *Init,
+                                         DataLayout *TD, TargetLibraryInfo *TLI) {
+@@ -12121,7 +12121,7 @@
+ +                cl::init(false));
+ +
+ +
+- void llvm::PNaClABISimplifyAddPreOptPasses(PassManager &PM) {
++ void llvm::PNaClABISimplifyAddPreOptPasses(PassManagerBase &PM) {
+    if (EnableSjLjEH) {
+      // This comes before ExpandTls because it introduces references to
+ @@ -34,6 +45,8 @@ void llvm::PNaClABISimplifyAddPreOptPasses(PassManager &PM) {
+@@ -12576,17 +12576,17 @@
+    enableval=host
+  fi
+  case "$enableval" in
+--  all) TARGETS_TO_BUILD="X86 Sparc PowerPC ARM AArch64 Mips XCore MSP430 Hexagon CppBackend MBlaze NVPTX SystemZ" ;;
+-+  all) TARGETS_TO_BUILD="X86 Sparc PowerPC ARM AArch64 Mips XCore MSP430 Hexagon CppBackend JSBackend MBlaze NVPTX SystemZ" ;;
++-  all) TARGETS_TO_BUILD="X86 Sparc PowerPC AArch64 ARM Mips XCore MSP430 CppBackend NVPTX Hexagon SystemZ R600" ;;
+++  all) TARGETS_TO_BUILD="X86 Sparc PowerPC AArch64 ARM Mips XCore MSP430 CppBackend JSBackend NVPTX Hexagon SystemZ R600" ;;
+    *)for a_target in `echo $enableval|sed -e 's/,/ /g' ` ; do
+        case "$a_target" in
+          x86)      TARGETS_TO_BUILD="X86 $TARGETS_TO_BUILD" ;;
+ @@ -5322,6 +5322,7 @@ case "$enableval" in
++         xcore)    TARGETS_TO_BUILD="XCore $TARGETS_TO_BUILD" ;;
+          msp430)   TARGETS_TO_BUILD="MSP430 $TARGETS_TO_BUILD" ;;
+-         hexagon)  TARGETS_TO_BUILD="Hexagon $TARGETS_TO_BUILD" ;;
+          cpp)      TARGETS_TO_BUILD="CppBackend $TARGETS_TO_BUILD" ;;
+ +        js)       TARGETS_TO_BUILD="JSBackend $TARGETS_TO_BUILD" ;;
+-         mblaze)   TARGETS_TO_BUILD="MBlaze $TARGETS_TO_BUILD" ;;
++         hexagon)  TARGETS_TO_BUILD="Hexagon $TARGETS_TO_BUILD" ;;
+          nvptx)    TARGETS_TO_BUILD="NVPTX $TARGETS_TO_BUILD" ;;
+          systemz)  TARGETS_TO_BUILD="SystemZ $TARGETS_TO_BUILD" ;;
+ diff --git a/readme-emscripten-fastcomp.txt b/readme-emscripten-fastcomp.txt
+@@ -14106,7 +14106,7 @@
+  define void @phi_icmp(i32 %a) {
+  entry:
+ @@ -398,3 +454,51 @@ if2:
+- end:
++   load i40* %element_ptr
+    ret void
+  }
+ +
