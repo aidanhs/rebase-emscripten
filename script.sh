@@ -1,4 +1,16 @@
 set -e
+
+if [ ! -d emscripten-fastcomp ]; then
+  git clone https://github.com/kripken/emscripten-fastcomp.git
+  cd emscripten-fastcomp
+  git remote add pnacl-llvm https://git.chromium.org/native_client/pnacl-llvm.git
+  git checkout --orphan pnacl-llvm
+  git reset --hard && git clean -f -x -d
+  git pull pnacl-llvm master
+  git checkout incoming
+  cd -
+fi
+
 cd emscripten-fastcomp
 
 if [ "$1" = reset ]; then
@@ -36,3 +48,7 @@ git commit -m 'Update to LLVM pnacl after they merged trunk r34 and reapplied pn
 # Step 3 - apply emscripten changes
 cat ../repatch | patch -u ../patch_to_reapply
 git apply --whitespace=fix --index --reject ../patch_to_reapply || true
+
+echo
+echo "These files mark conflicts and must be resolved:"
+find . -name '*.rej'
