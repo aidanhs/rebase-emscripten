@@ -7,11 +7,11 @@ if [ ! -d emscripten-fastcomp ]; then
   git checkout --orphan pnacl-llvm
   git reset --hard && git clean -f -x -d
   git pull pnacl-llvm master
-  git checkout incoming
   cd -
 fi
 
 cd emscripten-fastcomp
+git checkout incoming
 
 if [ "$1" = reset ]; then
   git clean -f -x -d
