@@ -11,7 +11,6 @@ if [ ! -d emscripten-fastcomp ]; then
 fi
 
 cd emscripten-fastcomp
-git checkout incoming
 
 if [ "$1" = reset ]; then
   git clean -f -x -d
@@ -21,6 +20,8 @@ if [ "$1" = reset ]; then
   git branch -D aphs-merge-pnacl-r34 aphs-tmp-diff || true
   exit
 fi
+
+git checkout incoming
 
 # Step 0 - prepare
 git config merge.renamelimit 2000
