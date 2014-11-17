@@ -1,0 +1,46 @@
+Done some quick investigation with some help from `git merge-base`.
+
+LLVM:
+```
+Emscripten llvm takes llvm pnacl from
+ - 7026af7138fccfb256456b04b375d39b025bdb7c
+the most recent llvm trunk merged into pnacl master at this point was
+ - 7dfcb84fc16b3bf6b2379713b53090757f0a45f9 (r33)
+
+emscripten-fastcomp $ git diff --shortstat 7026af7138 master # changes between pnacl and emscripten
+ 88 files changed, 10637 insertions(+), 2420 deletions(-)
+
+pnacl-llvm $ git diff --shortstat 7dfcb84fc 7026af7138 # changes between trunk and pnacl
+ 512 files changed, 40935 insertions(+), 958 deletions(-)
+
+LLVM pnacl after they merged trunk r34 and reapplied pnacl changes
+ - fe90708cae889704bba598c5d83eb4d8f38a37c7
+the most recent llvm trunk merged into pnacl master at this point was
+ - 36c7806f4eacd676932ba630246f88e0e37b1cd4 (r34)
+
+pnacl-llvm $ git diff --shortstat 36c7806f fe90708 # changes between trunk and pnacl
+ 476 files changed, 45266 insertions(+), 390 deletions(-)
+```
+
+Clang:
+```
+Emscripten clang takes clang pnacl from
+ - a963b803407c9d1cac644cc425004e0ccd28fa45
+the most recent clang trunk merged into pnacl master at this point was
+ - ca0dd25d1d053be4557fe32691e31e728b30fad5 (r33)
+
+emscripten-fastcomp-clang $ git diff --shortstat a963b80340 master # changes between pnacl and emscripten
+ 16 files changed, 493 insertions(+), 6 deletions(-)
+```
+
+I stopped looking at Clang because clearly the main effort is going to be moving LLVM.
+
+After squashing all emscripten commits I did some experiments:
+ - cherry pick squashed commit onto vanilla r33 llvm (7dfcb84fc), i.e. pretending we're based of trunk
+   - 16 files conflicted, mostly modifications to the (now non-existent) nacl files
+   - would need to steal the appropriate nacl passes
+ - cherry pick squashed commit onto pnacl llvm r34 (fe90708cae8)
+   - 11 files conflicted
+   - nacl passes should 'just work'
+
+I may have a look at how easy it is to lift the appropriate passes from pnacl, but without that knowledge the easiest way looks like rebasing onto pnacl llvm r34.
