@@ -40,7 +40,7 @@ git commit -m 'Prep for merging 3.4: undo changes from 3.3 branch
 Copying the process from PNaCl, undo the changes made on our branch
 so we can cleanly merge PNaCl Clang 3.4
 
-git diff 7026af7138fccfb HEAD > ../clang_patch_to_undo
+git diff a963b803407c HEAD > ../clang_patch_to_undo
 git apply --index --reverse ../clang_patch_to_undo'
 
 # Step 2 - roll forward to pnacl
