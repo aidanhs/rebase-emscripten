@@ -1,0 +1,32 @@
+--- t2	2014-11-18 00:15:29.146054255 +0000
++++ clang_patch_to_reapply	2014-11-18 00:16:39.982056231 +0000
+@@ -96,7 +96,7 @@
+    case TargetCXXABI::GenericARM:
+ +  case TargetCXXABI::Emscripten:
+    case TargetCXXABI::iOS:
+-     return createItaniumMangleContext(*this, getDiagnostics());
++     return ItaniumMangleContext::create(*this, getDiagnostics());
+    case TargetCXXABI::Microsoft:
+ diff --git a/lib/Basic/Targets.cpp b/lib/Basic/Targets.cpp
+ index a622a11..93da96f 100644
+@@ -233,9 +233,9 @@
+ +namespace {
+  class PNaClTargetInfo : public TargetInfo {
+  public:
+-   PNaClTargetInfo(const std::string& triple) : TargetInfo(triple) {
++   PNaClTargetInfo(const llvm::Triple &Triple) : TargetInfo(Triple) {
+ @@ -5315,6 +5433,14 @@ static TargetInfo *AllocateTarget(const std::string &T) {
+-       return new Mips64ELTargetInfo(T);
++       return new Mips64ELTargetInfo(Triple);
+      }
+  
+ +  case llvm::Triple::asmjs:
+@@ -448,7 +448,7 @@
+ +
+  class LLVM_LIBRARY_VISIBILITY Windows : public ToolChain {
+  public:
+-   Windows(const Driver &D, const llvm::Triple& Triple, const ArgList &Args);
++   Windows(const Driver &D, const llvm::Triple &Triple,
+ diff --git a/test/CodeGen/emscripten-arguments.c b/test/CodeGen/emscripten-arguments.c
+ new file mode 100644
+ index 0000000..afa0d9c

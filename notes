@@ -31,6 +31,11 @@ the most recent clang trunk merged into pnacl master at this point was
 
 emscripten-fastcomp-clang $ git diff --shortstat a963b80340 master # changes between pnacl and emscripten
  16 files changed, 493 insertions(+), 6 deletions(-)
+
+Clang pncal after they merged trunk r34 and reapplied pnacl changes
+ - c9e11978abdba970b12b46ab792634f0a98319d7
+the most recent clang trunk merged into pnacl master at this point was
+ - a5131ab23d77936eecc793a1b7096b9383c0f792
 ```
 
 I stopped looking at Clang because clearly the main effort is going to be moving LLVM.
